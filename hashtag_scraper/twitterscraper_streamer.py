@@ -1,6 +1,6 @@
 import datetime as dt
 import random
-
+import time
 import pandas as pd
 import twitterscraper
 from langdetect import detect
@@ -55,7 +55,6 @@ def scrape(y, m, query):
 
     df['lang'] = df['text'].apply(lambda x: detector(x))
     df = df[df['lang'] == 'en']
-    df.reset_index(drop=True, inplace=True)
 
     return df
 
@@ -101,23 +100,34 @@ def twitter_scraper(query, start_year, start_month, end_year, end_month):
             Returns:
                     df_result (DataFrame): A DataFrame containing all tweets, hashtags, likes, retweets, and replies for a query from starting to end dates.
     '''
+
+    start_time = time.time()
+    m = start_month
+    y = start_year
     df_result = pd.DataFrame()
+
     while True:
 
-        df = scrape(start_year, start_month, query)
-
+        df = scrape(y, m, query)
         df_result = df_result.append(df, ignore_index=True)
 
-        df.reset_index(drop=True, inplace=True)
-
-        if start_month == 12:
-            start_month = 1
-            start_year = start_year + 1
+        if m == 12:
+            m = 1
+            y = y + 1
         else:
-            start_month = start_month + 1
+            m = m + 1
 
-        if (start_month == end_month) and (start_year == end_year):
+        if (m == end_month) and (y == end_year):
+
             df_result = df_result.drop_duplicates(subset='tweet_id', keep='first')
+            df_result.reset_index(drop=True, inplace=True)
+
             df_result = df_result[['text', 'timestamp', 'hashtags', 'likes', 'retweets', 'replies']]
 
+            print('Scraped ' + str(len(df_result)) + ' tweets about ' + query + ' from '
+                  + str(start_month) + '/' + str(start_year) + ' to ' + str(end_month) + '/' + str(end_year)
+                  + ' in ' + str(int(time.time() - start_time)) + ' seconds.')
+
             return df_result
+
+twitter_scraper('coronavirus', 2020, 6, 2020, 7)
