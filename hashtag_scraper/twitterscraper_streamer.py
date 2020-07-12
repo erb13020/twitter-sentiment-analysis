@@ -1,8 +1,7 @@
 import datetime as dt
-
-import pandas as pd
 import random
 
+import pandas as pd
 import twitterscraper
 from langdetect import detect
 from twitterscraper import query_tweets
@@ -17,82 +16,108 @@ HEADERS_LIST = [
 
 twitterscraper.query.HEADER = {'User-Agent': random.choice(HEADERS_LIST), 'X-Requested-With': 'XMLHttpRequest'}
 
-def detector(x):
+
+def detector(s):
+    '''
+    Helper function for detecting language of a given string s using the langdetect module.
+
+            Parameters:
+                    s (str): A string.
+
+            Returns:
+                    detect(s) (str): string of length 2 indicating language of s.
+    '''
     try:
-        return detect(x)
+        return detect(s)
     except:
         None
 
 
-def scrape(y, m, d, query):
-    #search for every tweet containing query for the month
-    #I would have liked to just scrape all the tweets from the start_date to end_date but
-    #It starts breaking when you try to scrape dates for more than 31 dates
-    #So we just recrusively run this function until we've scraped tweets for every month
-    #inbetween the start_date and end_date to over ride this restriction
+def scrape(y, m, query):
+    '''
+    Returns a dataframe containing all tweets and metadata for a query in a given month and filters for only English tweets.
 
+            Parameters:
+                    y (int): A 4 digit integer representing the year.
+                    m (int): A 2 digit integer representing the month.
+                    query (str): The twitter query.
+
+            Returns:
+                    df (DataFrame): DataFrame containing all tweets and metadata for a query.
+    '''
+    d = __calculate_days(m, y)
     begin_date = dt.date(y, m, 1)
     end_date = dt.date(y, m, d)
 
     tweets = query_tweets(query, begindate=begin_date, enddate=end_date, poolsize=d)
 
-    df = pd.DataFrame(t.__dict__ for t in tweets) #put all the tweets into a dataframe
+    df = pd.DataFrame(t.__dict__ for t in tweets)
 
-    # filter for english tweets
-    df['lang'] = df['text'].apply(lambda x: detector(x)) #create a new column 'lang', pass df['text'] to the langdetect detector function
-    df = df[df['lang'] == 'en'] #Only look for tweets in the English language
+    df['lang'] = df['text'].apply(lambda x: detector(x))
+    df = df[df['lang'] == 'en']
+    df.reset_index(drop=True, inplace=True)
 
-    # This is where I would save the tweets for that month to a .csv file
+    return df
 
-    #     file_name = query + '_tweets_' + str(y) + '_' + str(m) +'.csv'
-    #     path = '~/PycharmProjects/bible_tweets/raw_tweets/' + file_name
-    #     df_christianity.to_csv(path, encoding='utf-8')
 
-    # I would then later merge all the tweets for each month to one .csv
-    
-    return df #for now just return the dataframe of the tweets for the month
+def __calculate_days(m, y):
+    '''
+    Private helper function for calculating the days in a month while accounting for leap years.
 
-def twitter_scraper(query_input, start_year, start_month, end_year, end_month):
+            Parameters:
+                    m (int): A 4 digit integer representing the year.
+                    y (int): A 2 digit integer representing the month.
+
+            Returns:
+                    d (int): An int representing the days in a given month.
+    '''
+
+    thirtyone_day_months = [1, 3, 5, 7, 8, 10, 12]
+    thirty_day_months = [4, 6, 9, 11]
+
+    if m in thirtyone_day_months:
+        d = 31
+    elif m in thirty_day_months:
+        d = 30
+    elif m == 2 and (y % 4 == 0):
+        d = 29
+    elif m == 2 and (y % 4 > 0):
+        d = 28
+
+    return d
+
+
+def twitter_scraper(query, start_year, start_month, end_year, end_month):
+    '''
+    Iterate scraping for all tweets about query from start_month,start_year to end_month,end_year
+
+            Parameters:
+                    query (str): A string representing the query.
+                    start_year (int): An integer representing the starting year.
+                    start_month (int): An integer representing the starting month.
+                    end_year(int): An integer representing the starting year.
+                    end_month(int): An integer representing the ending month.
+
+            Returns:
+                    df_result (DataFrame): A DataFrame containing all tweets, hashtags, likes, retweets, and replies for a query from starting to end dates.
+    '''
+    df_result = pd.DataFrame()
     while True:
 
-        #see comment under the scrape(y,m,d,query) function as to why we can only look at tweets
-        #in increments of months
+        df = scrape(start_year, start_month, query)
 
-        print(
-            "Now searching for tweets about " + query_input + " for the month of " + str(start_month) + " and the year of " + str(
-                start_year))
-        days = 0
+        df_result = df_result.append(df, ignore_index=True)
 
-        #calculate how many days are are in the current month
-        #This could definetly be improved
+        df.reset_index(drop=True, inplace=True)
 
-        thirtyone_day_months = [1, 3, 5, 7, 8, 10, 12]
-        thirty_day_months = [4, 6, 9, 11]
-    
-        if start_month in thirtyone_day_months:
-            days = 31
-        elif start_month in thirty_day_months:
-            days = 30
-        elif start_month == 2 and (start_year % 4 == 0):
-            days = 29
-        elif start_month == 2 and (start_year % 4 > 0):
-            days = 28
-
-        #We pass this to our helper function for scraping
-        scrape(start_year, start_month, days, query_input)
-
-
-        #If we're going from December to January - add 1 to year and set current month to 1 (january)
         if start_month == 12:
             start_month = 1
             start_year = start_year + 1
         else:
-            # otherwise move our date window up a month
             start_month = start_month + 1
 
-        #If we're past the end_date, we can end the program
-        if ((start_month == end_month) and (start_year == end_year)):
-            break
+        if (start_month == end_month) and (start_year == end_year):
+            df_result = df_result.drop_duplicates(subset='tweet_id', keep='first')
+            df_result = df_result[['text', 'timestamp', 'hashtags', 'likes', 'retweets', 'replies']]
 
-#Let's scrape all tweets about the coronavirus from Feb 2020 to June 2020
-twitter_scraper('coronavirus', 2020, 2, 2020, 6)
+            return df_result
