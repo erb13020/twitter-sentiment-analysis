@@ -2,3 +2,6 @@ flair
 textblob
 nltk
 tqdm
+twitterscraper
+langdetect
+twitterscraper
