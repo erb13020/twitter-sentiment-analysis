@@ -118,12 +118,14 @@ def twitter_scraper(query, start_day, start_month, start_year, end_day, end_mont
             df_result = df_result.drop_duplicates(subset='tweet_id', keep='first')
             df_result.reset_index(drop=True, inplace=True)
 
-            df_result = df_result[['text', 'timestamp', 'hashtags', 'likes', 'retweets', 'replies']]
+            df_result = df_result[['user_id', 'tweet_id', 'text', 'timestamp', 'hashtags', 'likes', 'retweets', 'replies', 'parent_tweet_id', 'reply_to_users']]
 
             print('Scraped ' + str(len(df_result)) + ' tweets about ' + query + ' from '
                   + str(start_month) + '/' + str(start_year) + ' to ' + str(end_month) + '/' + str(end_year)
                   + ' in ' + str(int(time.time() - start_time)) + ' seconds.')
 
+            df_result.to_csv('tweets.gz', encoding='utf-8', index=False)
+
             return df_result
 
-# twitter_scraper('tesla', 27, 2, 2019, 27, 2, 2020)
+twitter_scraper('tesla', 28, 2, 2020, 29, 2, 2020)
