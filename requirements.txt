@@ -4,4 +4,4 @@ nltk
 tqdm
 twitterscraper
 langdetect
-twitterscraper==1.5.0
+twitterscraper==1.6.1
