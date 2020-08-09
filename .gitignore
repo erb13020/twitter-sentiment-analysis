@@ -128,6 +128,8 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# file formats
+# ========================== Custom gitignores ==========================
+
+# data file formats to ensure that no dumped data is loaded into the repo
 *.gz
 *.csv
